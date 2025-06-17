@@ -62,7 +62,10 @@ namespace pmg {
         };
         auto constexpr drop_last_if_range_size_is_odd = [](auto&& p_range) { return std::views::take(p_range, std::ranges::ssize(p_range) - (std::ranges::ssize(p_range) % 2 != 0)); };
     }
-    template <typename tp_in_t, typename tp_out_t>
+    template <
+        typename tp_in_t,
+        typename tp_out_t
+    >
     using package_merge_result = std::ranges::in_out_result<
         tp_in_t,
         tp_out_t
@@ -128,7 +131,7 @@ namespace pmg {
                         return return_type{};
                 using m_optimal_bitmask_t   = optimal_bitmask_type<tp_max_code_length>;
                 using m_optimal_code_size_t = optimal_unsigned_integer_t<tp_max_code_length>;
-                using m_optimal_frequency_t = std::conditional_t<tp_max_frequency_if_known != std::numeric_limits<std::size_t>::max(), optimal_unsigned_integer_t<pow(tp_max_frequency_if_known, tp_max_code_length)>, std::size_t>;
+                using m_optimal_frequency_t = std::conditional_t<std::cmp_equal(tp_max_frequency_if_known, std::numeric_limits<std::size_t>::max()), std::size_t, optimal_unsigned_integer_t<pow(tp_max_frequency_if_known, tp_max_code_length)>>;
                 using m_optimal_size_t      = std::conditional_t<tp_size_if_known, optimal_unsigned_integer_t<tp_size_if_known>, std::size_t>;
                 using m_optimal_capacity_t  = std::conditional_t<tp_size_if_known, optimal_unsigned_integer_t<tp_size_if_known * 2>, std::size_t>;    
                 auto const l_histogram_size = std::ranges::size(p_histogram);
@@ -162,7 +165,7 @@ namespace pmg {
                     for (; l_first2 != l_last2; *l_out++ = static_cast<m_optimal_frequency_t>(*l_first2++))
                         l_is_merged[l_index++] |= static_cast<std::ranges::range_value_t<decltype(l_is_merged)>>(1 << l_depth);
                     ++l_depth;
-                    if (std::ranges::size(*l_previous) >= l_max_capacity - 2 && std::ranges::equal(drop_last_if_range_size_is_odd(*l_current), drop_last_if_range_size_is_odd(*l_previous)))
+                    if (std::cmp_greater_equal(std::ranges::size(*l_previous), l_max_capacity - 2) && std::ranges::equal(drop_last_if_range_size_is_odd(*l_current), drop_last_if_range_size_is_odd(*l_previous)))
                         break;
                 }
                 auto l_analyze_count = std::uintmax_t{l_max_capacity - 2};
@@ -250,4 +253,3 @@ namespace pmg {
     >{};
 }
 #endif
-
