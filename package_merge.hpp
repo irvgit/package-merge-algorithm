@@ -130,48 +130,46 @@ namespace pmg {
                             },
                             std::move(p_result)
                         };
-                using m_optimal_bitmask_t   = optimal_bitmask_type<tp_max_code_length>;
-                using m_optimal_code_size_t = optimal_unsigned_integer_t<tp_max_code_length>;
-                using m_optimal_frequency_t = std::conditional_t<std::cmp_equal(tp_max_frequency_if_known, std::numeric_limits<std::size_t>::max()), std::size_t, optimal_unsigned_integer_t<pow(tp_max_frequency_if_known, tp_max_code_length)>>;
-                using m_optimal_size_t      = std::conditional_t<tp_size_if_known, optimal_unsigned_integer_t<tp_size_if_known>, std::size_t>;
-                using m_optimal_capacity_t  = std::conditional_t<tp_size_if_known, optimal_unsigned_integer_t<tp_size_if_known * 2>, std::size_t>;    
+                using l_optimal_bitmask_t   = optimal_bitmask_type<tp_max_code_length>;
+                using l_optimal_code_size_t = optimal_unsigned_integer_t<tp_max_code_length>;
+                using l_optimal_frequency_t = std::conditional_t<std::cmp_equal(tp_max_frequency_if_known, std::numeric_limits<std::size_t>::max()), std::size_t, optimal_unsigned_integer_t<pow(tp_max_frequency_if_known, tp_max_code_length)>>;
+                using l_optimal_size_t      = std::conditional_t<tp_size_if_known, optimal_unsigned_integer_t<tp_size_if_known>, std::size_t>;
                 auto const l_histogram_size = std::ranges::size(p_range);
                 auto const l_max_capacity   = 2 * l_histogram_size;
-                auto l_is_merged            = optimal_vector<m_optimal_bitmask_t, tp_size_if_known * 2, true>(l_max_capacity);
-                auto l_current_source       = optimal_vector<m_optimal_frequency_t, tp_size_if_known * 2, false>(l_max_capacity);
-                auto l_previous_source      = optimal_vector<m_optimal_frequency_t, tp_size_if_known * 2, false>(l_max_capacity);
+                auto l_is_merged            = optimal_vector<l_optimal_bitmask_t, tp_size_if_known * 2, true>(l_max_capacity);
+                auto l_current_source       = optimal_vector<l_optimal_frequency_t, tp_size_if_known * 2, false>(l_max_capacity);
+                auto l_previous_source      = optimal_vector<l_optimal_frequency_t, tp_size_if_known * 2, false>(l_max_capacity);
                 auto l_current              = std::addressof(l_current_source);
                 auto l_previous             = std::addressof(l_previous_source);
-                auto l_depth                = m_optimal_code_size_t{0};
+                auto l_depth                = l_optimal_code_size_t{0};
                 std::ranges::transform(p_range, std::back_inserter(l_previous_source), p_projection);
                 for (; std::cmp_not_equal(l_depth, tp_max_code_length - 1); std::ranges::swap(l_current, l_previous), l_current->clear()) {
-                    auto l_merges = *l_previous | std::views::pairwise_transform(std::plus<m_optimal_frequency_t>{}) | std::views::stride(2);
+                    auto l_merges = *l_previous | std::views::pairwise_transform(std::plus<l_optimal_frequency_t>{}) | std::views::stride(2);
                     auto l_first1 = std::ranges::begin(p_range);
                     auto l_first2 = std::ranges::begin(l_merges);
                     auto l_last1  = std::ranges::end(p_range);
                     auto l_last2  = std::ranges::end(l_merges);
                     auto l_out    = std::back_inserter(*l_current);
-                    auto l_index  = m_optimal_capacity_t{2};
                     *l_out++ = static_cast<std::ranges::range_value_t<decltype(*l_current)>>(*l_first1++);
                     *l_out++ = static_cast<std::ranges::range_value_t<decltype(*l_current)>>(*l_first1++);
-                    for (; l_first1 != l_last1 && l_first2 != l_last2; ++l_out, ++l_index) {
+                    for (; l_first1 != l_last1 && l_first2 != l_last2; ++l_out) {
                         if (std::cmp_less_equal(std::invoke(p_projection, *l_first1), *l_first2))
-                            *l_out = static_cast<m_optimal_frequency_t>(std::invoke(p_projection, *l_first1++));
+                            *l_out = static_cast<l_optimal_frequency_t>(std::invoke(p_projection, *l_first1++));
                         else {
-                            l_is_merged[l_index] |= static_cast<std::ranges::range_value_t<decltype(l_is_merged)>>(1 << l_depth);
+                            l_is_merged[std::ranges::size(*l_current)] |= static_cast<std::ranges::range_value_t<decltype(l_is_merged)>>(1 << l_depth);
                             *l_out = *l_first2++;
                         }
                     }
-                    for (; l_first1 != l_last1; *l_out++ = static_cast<m_optimal_frequency_t>(std::invoke(p_projection, *l_first1++)), ++l_index);
-                    for (; l_first2 != l_last2; *l_out++ = static_cast<m_optimal_frequency_t>(*l_first2++))
-                        l_is_merged[l_index++] |= static_cast<std::ranges::range_value_t<decltype(l_is_merged)>>(1 << l_depth);
+                    for (; l_first1 != l_last1; *l_out++ = static_cast<l_optimal_frequency_t>(std::invoke(p_projection, *l_first1++)));
+                    for (; l_first2 != l_last2; *l_out++ = static_cast<l_optimal_frequency_t>(*l_first2++))
+                        l_is_merged[std::ranges::size(*l_current)] |= static_cast<std::ranges::range_value_t<decltype(l_is_merged)>>(1 << l_depth);
                     ++l_depth;
                     if (std::cmp_greater_equal(std::ranges::size(*l_previous), l_max_capacity - 2) && std::ranges::equal(drop_last_if_range_size_is_odd(*l_current), drop_last_if_range_size_is_odd(*l_previous)))
                         break;
                 }
                 auto l_analyze_count = std::uintmax_t{l_max_capacity - 2};
                 for (*p_result = *std::ranges::next(p_result) = l_depth; auto const i : std::views::iota(decltype(l_depth){0}, l_depth)) {
-                    auto l_merged_count = m_optimal_size_t{0};
+                    auto l_merged_count = l_optimal_size_t{0};
                     for (auto l_out = std::ranges::next(p_result, 2); auto j : std::views::iota(decltype(l_analyze_count){0}, l_analyze_count) | std::views::drop(2))
                         if (!(l_is_merged[static_cast<std::size_t>(j)] & 1 << (l_depth - 1) >> i))
                             ++*l_out++;
