@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iterator>
 #if __cplusplus < 202302L
     #error out of date c++ version, compile with -stdc++=2c
 #elif defined(__clang__) && __clang_major__ < 19
@@ -85,9 +86,9 @@ namespace pmg {
         )
         struct package_merge_fn {
             template <
-                std::ranges::sized_range         tp_sized_range_t,
-                std::ranges::random_access_range tp_random_access_range_t,
-                typename                         tp_projection_t = std::identity
+                std::ranges::sized_range    tp_sized_range_t,
+                std::random_access_iterator tp_random_access_iterator_t,
+                typename                    tp_projection_t = std::identity
             >
             requires (
                 std::integral<
@@ -98,12 +99,12 @@ namespace pmg {
                         >
                     >
                 > &&
-                std::integral<std::ranges::range_value_t<tp_random_access_range_t>>
+                std::integral<std::iter_difference_t<tp_random_access_iterator_t>>
             )
             auto constexpr operator()[[maybe_unused]] (
-                tp_sized_range_t&&         p_histogram,
-                tp_random_access_range_t&& p_lengths,
-                tp_projection_t            p_projection = {}
+                tp_sized_range_t&&          p_range,
+                tp_random_access_iterator_t p_result,
+                tp_projection_t             p_projection = {}
             )
             const
             -> package_merge_result<
@@ -111,30 +112,24 @@ namespace pmg {
                     std::ranges::iterator_t<tp_sized_range_t>,
                     std::ranges::sentinel_t<tp_sized_range_t>
                 >,
-                std::ranges::subrange<
-                    std::ranges::iterator_t<tp_random_access_range_t>,
-                    std::ranges::sentinel_t<tp_random_access_range_t>
-                >
+                tp_random_access_iterator_t
             > {
                 using return_type = package_merge_result<
                     std::ranges::subrange<
                         std::ranges::iterator_t<tp_sized_range_t>,
                         std::ranges::sentinel_t<tp_sized_range_t>
                     >,
-                    std::ranges::subrange<
-                        std::ranges::iterator_t<tp_random_access_range_t>,
-                        std::ranges::sentinel_t<tp_random_access_range_t>
-                    >
+                    tp_random_access_iterator_t
                 >;
                 if constexpr (!tp_size_if_known)
-                    if (std::cmp_greater(std::ranges::size(p_histogram), length_capacity<tp_max_code_length>))
+                    if (std::cmp_greater(std::ranges::size(p_range), length_capacity<tp_max_code_length>))
                         return return_type{};
                 using m_optimal_bitmask_t   = optimal_bitmask_type<tp_max_code_length>;
                 using m_optimal_code_size_t = optimal_unsigned_integer_t<tp_max_code_length>;
                 using m_optimal_frequency_t = std::conditional_t<std::cmp_equal(tp_max_frequency_if_known, std::numeric_limits<std::size_t>::max()), std::size_t, optimal_unsigned_integer_t<pow(tp_max_frequency_if_known, tp_max_code_length)>>;
                 using m_optimal_size_t      = std::conditional_t<tp_size_if_known, optimal_unsigned_integer_t<tp_size_if_known>, std::size_t>;
                 using m_optimal_capacity_t  = std::conditional_t<tp_size_if_known, optimal_unsigned_integer_t<tp_size_if_known * 2>, std::size_t>;    
-                auto const l_histogram_size = std::ranges::size(p_histogram);
+                auto const l_histogram_size = std::ranges::size(p_range);
                 auto const l_max_capacity   = 2 * l_histogram_size;
                 auto l_is_merged            = optimal_vector<m_optimal_bitmask_t, tp_size_if_known * 2, true>(l_max_capacity);
                 auto l_current_source       = optimal_vector<m_optimal_frequency_t, tp_size_if_known * 2, false>(l_max_capacity);
@@ -142,12 +137,12 @@ namespace pmg {
                 auto l_current              = std::addressof(l_current_source);
                 auto l_previous             = std::addressof(l_previous_source);
                 auto l_depth                = m_optimal_code_size_t{0};
-                std::ranges::transform(p_histogram, std::back_inserter(l_previous_source), p_projection);
+                std::ranges::transform(p_range, std::back_inserter(l_previous_source), p_projection);
                 for (; std::cmp_not_equal(l_depth, tp_max_code_length - 1); std::ranges::swap(l_current, l_previous), l_current->clear()) {
                     auto l_merges = *l_previous | std::views::pairwise_transform(std::plus<m_optimal_frequency_t>{}) | std::views::stride(2);
-                    auto l_first1 = std::ranges::begin(p_histogram);
+                    auto l_first1 = std::ranges::begin(p_range);
                     auto l_first2 = std::ranges::begin(l_merges);
-                    auto l_last1  = std::ranges::end(p_histogram);
+                    auto l_last1  = std::ranges::end(p_range);
                     auto l_last2  = std::ranges::end(l_merges);
                     auto l_out    = std::back_inserter(*l_current);
                     auto l_index  = m_optimal_capacity_t{2};
@@ -169,26 +164,25 @@ namespace pmg {
                         break;
                 }
                 auto l_analyze_count = std::uintmax_t{l_max_capacity - 2};
-                for (p_lengths[0] = p_lengths[1] = l_depth; auto const i : std::views::iota(decltype(l_depth){0}, l_depth)) {
+                for (*p_result = *std::ranges::next(p_result) = l_depth; auto const i : std::views::iota(decltype(l_depth){0}, l_depth)) {
                     auto l_merged_count = m_optimal_size_t{0};
-                    for (auto l_symbol_index = m_optimal_capacity_t{2}; auto j : std::views::iota(decltype(l_analyze_count){0}, l_analyze_count) | std::views::drop(2))
+                    for (auto l_out = std::ranges::next(p_result, 2); auto j : std::views::iota(decltype(l_analyze_count){0}, l_analyze_count) | std::views::drop(2))
                         if (!(l_is_merged[static_cast<std::size_t>(j)] & 1 << (l_depth - 1) >> i))
-                            ++p_lengths[l_symbol_index++];
+                            ++*l_out++;
                         else ++l_merged_count;
                     l_analyze_count = l_merged_count * 2;
                 }
-                for (auto const i : std::views::iota(decltype(l_analyze_count){0}, l_analyze_count))
-                    ++p_lengths[static_cast<std::size_t>(i)];
+                for (auto const _ : std::views::iota(decltype(l_analyze_count){0}, l_analyze_count))
+                    ++*p_result++;
                 return return_type{
-                    p_histogram,
-                    p_lengths
+                    std::ranges::subrange{p_range},
+                    std::move(p_result)
                 };
             }
             template <
                 std::input_iterator                                  tp_input_iterator_t,
                 std::sentinel_for<tp_input_iterator_t>               tp_sentinel_iterator_t,
                 std::input_iterator                                  tp_random_access_iterator_t,
-                std::sized_sentinel_for<tp_random_access_iterator_t> tp_sized_sentinel_iterator_t,
                 typename                                             tp_projection_t = std::identity
             >
             requires (
@@ -203,10 +197,9 @@ namespace pmg {
                 std::integral<std::iter_value_t<tp_random_access_iterator_t>>
             )
             auto constexpr operator()[[maybe_unused]] (
-                tp_input_iterator_t          p_histogram_first,
-                tp_sentinel_iterator_t&&     p_histogram_last,
-                tp_random_access_iterator_t  p_result_first,
-                tp_sized_sentinel_iterator_t p_result_last,
+                tp_input_iterator_t          p_first,
+                tp_sentinel_iterator_t       p_last,
+                tp_random_access_iterator_t  p_result,
                 tp_projection_t              p_projection = {}
             )
             const
@@ -215,20 +208,14 @@ namespace pmg {
                     tp_input_iterator_t,
                     tp_sentinel_iterator_t
                 >,
-                std::ranges::subrange<
-                    tp_random_access_iterator_t,
-                    tp_sized_sentinel_iterator_t
-                >
+                tp_random_access_iterator_t
             > {
                 return (*this)(
                     std::ranges::subrange{
-                        std::move(p_histogram_first),
-                        std::move(p_histogram_last)
+                        std::move(p_first),
+                        std::move(p_last)
                     },
-                    std::ranges::subrange{
-                        std::move(p_result_first),
-                        std::move(p_result_last)
-                    },
+                    std::move(p_result),
                     std::move(p_projection)
                 );
             }
