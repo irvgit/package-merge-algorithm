@@ -1,6 +1,5 @@
 #pragma once
 
-#include <iterator>
 #if __cplusplus < 202302L
     #error out of date c++ version, compile with -stdc++=2c
 #elif defined(__clang__) && __clang_major__ < 19
@@ -16,6 +15,7 @@
 #include <bitset>
 #include <cinttypes>
 #include <functional>
+#include <iterator>
 #include <numeric>
 #include <ranges>
 #include <utility>
