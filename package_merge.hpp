@@ -123,7 +123,13 @@ namespace pmg {
                 >;
                 if constexpr (!tp_size_if_known)
                     if (std::cmp_greater(std::ranges::size(p_range), length_capacity<tp_max_code_length>))
-                        return return_type{};
+                        return return_type{
+                            std::ranges::subrange{
+                                std::ranges::end(p_range),
+                                std::ranges::end(p_range)
+                            },
+                            std::move(p_result)
+                        };
                 using m_optimal_bitmask_t   = optimal_bitmask_type<tp_max_code_length>;
                 using m_optimal_code_size_t = optimal_unsigned_integer_t<tp_max_code_length>;
                 using m_optimal_frequency_t = std::conditional_t<std::cmp_equal(tp_max_frequency_if_known, std::numeric_limits<std::size_t>::max()), std::size_t, optimal_unsigned_integer_t<pow(tp_max_frequency_if_known, tp_max_code_length)>>;
