@@ -125,7 +125,7 @@ namespace pmg {
                     if (std::cmp_greater(std::ranges::size(p_range), length_capacity<tp_max_code_length>))
                         return return_type{
                             std::ranges::subrange{
-                                std::ranges::end(p_range),
+                                std::ranges::begin(p_range),
                                 std::ranges::end(p_range)
                             },
                             std::move(p_result)
@@ -162,7 +162,7 @@ namespace pmg {
                             *l_out = *l_first2++;
                         }
                     }
-                    for (; l_first1 != l_last1; *l_out++ = static_cast<m_optimal_frequency_t>(*l_first1++), ++l_index);
+                    for (; l_first1 != l_last1; *l_out++ = static_cast<m_optimal_frequency_t>(std::invoke(p_projection, *l_first1++)), ++l_index);
                     for (; l_first2 != l_last2; *l_out++ = static_cast<m_optimal_frequency_t>(*l_first2++))
                         l_is_merged[l_index++] |= static_cast<std::ranges::range_value_t<decltype(l_is_merged)>>(1 << l_depth);
                     ++l_depth;
