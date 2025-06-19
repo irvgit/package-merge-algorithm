@@ -18,11 +18,21 @@
 #include <iterator>
 #include <numeric>
 #include <ranges>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
 namespace pmg {
     namespace detail {
+        template <typename tp_type_t>
+        struct array_size_impl : std::integral_constant<std::size_t, 0> {};
+        template <typename tp_type_t, std::size_t tp_size_t>
+        struct array_size_impl<tp_type_t[tp_size_t]> : std::integral_constant<std::size_t, tp_size_t> {};
+        template <typename tp_type_t, std::size_t tp_size_t>
+        struct array_size_impl<std::array<tp_type_t, tp_size_t>> : std::integral_constant<std::size_t, tp_size_t> {};
+        template <typename tp_type_t>
+        auto constexpr array_size = array_size_impl<tp_type_t>::value;
+
         template <std::size_t tp_max_code_length>
         using optimal_bitmask_type = std::conditional_t<
         std::cmp_less_equal(tp_max_code_length, 8), std::uint8_t, std::conditional_t<
@@ -42,8 +52,12 @@ namespace pmg {
         auto constexpr optimal_vector = []([[maybe_unused]] std::size_t p_size) {
             if constexpr (tp_size) {
                 if constexpr (tp_resize)
-                    return std::array<tp_type_t, tp_size>{}; //should be return std::conditional_t<tp_array, std::array<tp_type_t, tp_size>, std::inplace_vector<tp_type_t>>(tp_size);
-                else return std::vector<tp_type_t>(tp_size);
+                    return std::array<tp_type_t, tp_size>{}; //should be return std::conditional_t<tp_resize, std::array<tp_type_t, tp_size>, std::inplace_vector<tp_type_t>>(tp_size);
+                else {
+                    auto l_result = std::vector<tp_type_t>{}; //remove this branch when the above is available
+                    l_result.reserve(p_size);
+                    return l_result;
+                }
             }
             else {
                 if constexpr (tp_resize)
@@ -121,7 +135,8 @@ namespace pmg {
                     >,
                     tp_random_access_iterator_t
                 >;
-                if constexpr (!tp_size_if_known)
+                auto constexpr static l_size_if_known = tp_size_if_known ? tp_size_if_known : array_size<std::remove_cvref_t<tp_sized_range_t>>;
+                if constexpr (!l_size_if_known)
                     if (std::cmp_greater(std::ranges::size(p_range), length_capacity<tp_max_code_length>))
                         return return_type{
                             std::ranges::subrange{
@@ -133,12 +148,12 @@ namespace pmg {
                 using l_optimal_bitmask_t   = optimal_bitmask_type<tp_max_code_length>;
                 using l_optimal_code_size_t = optimal_unsigned_integer_t<tp_max_code_length>;
                 using l_optimal_frequency_t = std::conditional_t<std::cmp_equal(tp_max_frequency_if_known, std::numeric_limits<std::size_t>::max()), std::size_t, optimal_unsigned_integer_t<pow(tp_max_frequency_if_known, tp_max_code_length)>>;
-                using l_optimal_size_t      = std::conditional_t<tp_size_if_known, optimal_unsigned_integer_t<tp_size_if_known>, std::size_t>;
+                using l_optimal_size_t      = std::conditional_t<std::cmp_equal(l_size_if_known, 0), std::size_t, optimal_unsigned_integer_t<l_size_if_known>>;
                 auto const l_histogram_size = std::ranges::size(p_range);
                 auto const l_max_capacity   = 2 * l_histogram_size;
-                auto l_is_merged            = optimal_vector<l_optimal_bitmask_t, tp_size_if_known * 2, true>(l_max_capacity);
-                auto l_current_source       = optimal_vector<l_optimal_frequency_t, tp_size_if_known * 2, false>(l_max_capacity);
-                auto l_previous_source      = optimal_vector<l_optimal_frequency_t, tp_size_if_known * 2, false>(l_max_capacity);
+                auto l_is_merged            = optimal_vector<l_optimal_bitmask_t, l_size_if_known * 2, true>(l_max_capacity);
+                auto l_current_source       = optimal_vector<l_optimal_frequency_t, l_size_if_known * 2, false>(l_max_capacity);
+                auto l_previous_source      = optimal_vector<l_optimal_frequency_t, l_size_if_known * 2, false>(l_max_capacity);
                 auto l_current              = std::addressof(l_current_source);
                 auto l_previous             = std::addressof(l_previous_source);
                 auto l_depth                = l_optimal_code_size_t{0};
