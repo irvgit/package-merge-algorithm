@@ -165,8 +165,8 @@ namespace pmg {
                     auto l_last1  = std::ranges::end(p_range);
                     auto l_last2  = std::ranges::end(l_merges);
                     auto l_out    = std::back_inserter(*l_current);
-                    *l_out++ = static_cast<std::ranges::range_value_t<decltype(*l_current)>>(*l_first1++);
-                    *l_out++ = static_cast<std::ranges::range_value_t<decltype(*l_current)>>(*l_first1++);
+                    *l_out++ = static_cast<std::ranges::range_value_t<decltype(*l_current)>>(std::invoke(p_projection, *l_first1++));
+                    *l_out++ = static_cast<std::ranges::range_value_t<decltype(*l_current)>>(std::invoke(p_projection, *l_first1++));
                     for (; l_first1 != l_last1 && l_first2 != l_last2; ++l_out) {
                         if (std::cmp_less_equal(std::invoke(p_projection, *l_first1), *l_first2))
                             *l_out = static_cast<l_optimal_frequency_t>(std::invoke(p_projection, *l_first1++));
