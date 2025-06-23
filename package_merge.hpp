@@ -136,6 +136,10 @@ namespace pmg {
                     tp_random_access_iterator_t
                 >;
                 auto constexpr static l_size_if_known = tp_size_if_known ? tp_size_if_known : array_size<std::remove_cvref_t<tp_sized_range_t>>;
+                using l_optimal_bitmask_t   = optimal_bitmask_type<tp_max_code_length>;
+                using l_optimal_code_size_t = optimal_unsigned_integer_t<tp_max_code_length>;
+                using l_optimal_frequency_t = std::conditional_t<std::cmp_equal(tp_max_frequency_if_known, std::numeric_limits<std::size_t>::max()), std::size_t, optimal_unsigned_integer_t<pow(tp_max_frequency_if_known, tp_max_code_length)>>;
+                using l_optimal_size_t      = std::conditional_t<std::cmp_equal(l_size_if_known, 0), std::size_t, optimal_unsigned_integer_t<l_size_if_known>>;
                 if constexpr (!l_size_if_known)
                     if (std::cmp_greater(std::ranges::size(p_range), length_capacity<tp_max_code_length>))
                         return return_type{
@@ -145,15 +149,18 @@ namespace pmg {
                             },
                             std::move(p_result)
                         };
-                using l_optimal_bitmask_t   = optimal_bitmask_type<tp_max_code_length>;
-                using l_optimal_code_size_t = optimal_unsigned_integer_t<tp_max_code_length>;
-                using l_optimal_frequency_t = std::conditional_t<std::cmp_equal(tp_max_frequency_if_known, std::numeric_limits<std::size_t>::max()), std::size_t, optimal_unsigned_integer_t<pow(tp_max_frequency_if_known, tp_max_code_length)>>;
-                using l_optimal_size_t      = std::conditional_t<std::cmp_equal(l_size_if_known, 0), std::size_t, optimal_unsigned_integer_t<l_size_if_known>>;
                 if (std::ranges::empty(p_range))
                     return return_type{
                         std::ranges::subrange{p_range},
                         std::move(p_result)
                     };
+                if (std::cmp_equal(std::ranges::size(p_range), 1)) {
+                    *p_result++ = 1;
+                    return return_type{
+                        std::ranges::subrange{p_range},
+                        std::move(p_result)
+                    };
+                }
                 auto const l_histogram_size = std::ranges::size(p_range);
                 auto const l_max_capacity   = 2 * l_histogram_size;
                 auto l_is_merged            = optimal_vector<l_optimal_bitmask_t, l_size_if_known * 2, true>(l_max_capacity);
