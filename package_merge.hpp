@@ -33,6 +33,12 @@ namespace pmg {
         template <typename tp_type_t>
         auto constexpr array_size = array_size_impl<tp_type_t>::value;
 
+        template <typename tp_iterator_t>
+        concept indirectly_weakly_incrementable =
+            std::is_reference_v<std::iter_reference_t<tp_iterator_t>> &&
+            !std::is_const_v<std::remove_reference_t<std::iter_reference_t<tp_iterator_t>>> &&
+            std::weakly_incrementable<std::remove_reference_t<std::iter_value_t<tp_iterator_t>>>;
+
         template <std::size_t tp_max_code_length>
         using optimal_bitmask_type = std::conditional_t<
         std::cmp_less_equal(tp_max_code_length, 8), std::uint8_t, std::conditional_t<
@@ -113,7 +119,7 @@ namespace pmg {
                         >
                     >
                 > &&
-                std::weakly_incrementable<std::iter_reference_t<tp_random_access_iterator_t>>
+                detail::indirectly_weakly_incrementable<tp_random_access_iterator_t>
             )
             auto constexpr operator()[[maybe_unused]] (
                 tp_sized_range_t&&          p_range,
@@ -155,7 +161,7 @@ namespace pmg {
                         std::move(p_result)
                     };
                 if (std::cmp_equal(std::ranges::size(p_range), 1)) {
-                    *p_result++ = 1;
+                    ++*p_result++;
                     return return_type{
                         std::ranges::subrange{p_range},
                         std::move(p_result)
@@ -225,7 +231,7 @@ namespace pmg {
                         >
                     >
                 > &&
-                std::weakly_incrementable<std::iter_reference_t<tp_random_access_iterator_t>>
+                detail::indirectly_weakly_incrementable<tp_random_access_iterator_t>
             )
             auto constexpr operator()[[maybe_unused]] (
                 tp_input_iterator_t          p_first,
