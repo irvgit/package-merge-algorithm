@@ -113,7 +113,7 @@ namespace pmg {
                         >
                     >
                 > &&
-                std::integral<std::iter_difference_t<tp_random_access_iterator_t>>
+                std::weakly_incrementable<std::iter_reference_t<tp_random_access_iterator_t>>
             )
             auto constexpr operator()[[maybe_unused]] (
                 tp_sized_range_t&&          p_range,
@@ -211,10 +211,10 @@ namespace pmg {
                 };
             }
             template <
-                std::input_iterator                                  tp_input_iterator_t,
-                std::sentinel_for<tp_input_iterator_t>               tp_sentinel_iterator_t,
-                std::input_iterator                                  tp_random_access_iterator_t,
-                typename                                             tp_projection_t = std::identity
+                std::input_iterator                    tp_input_iterator_t,
+                std::sentinel_for<tp_input_iterator_t> tp_sentinel_iterator_t,
+                std::random_access_iterator            tp_random_access_iterator_t,
+                typename                               tp_projection_t = std::identity
             >
             requires (
                 std::integral<
@@ -225,7 +225,7 @@ namespace pmg {
                         >
                     >
                 > &&
-                std::integral<std::iter_value_t<tp_random_access_iterator_t>>
+                std::weakly_incrementable<std::iter_reference_t<tp_random_access_iterator_t>>
             )
             auto constexpr operator()[[maybe_unused]] (
                 tp_input_iterator_t          p_first,
